@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  nasser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nasser-system
+    image: nasser:latest
+    ports:
+      - "8080:8080"
+      - "5000:5000"
+    environment:
+      - LANG=ar_SA.UTF-8
+      - LANGUAGE=ar_SA:en
+      - LC_ALL=ar_SA.UTF-8
+    volumes:
+      - ./src:/opt/nasser/src
+      - ./config:/opt/nasser/config
+      - nasser-data:/opt/nasser/data
+      - nasser-logs:/opt/nasser/var/log
+    networks:
+      - nasser-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "print('Nasser is healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nasser-db:
+    image: postgres:14-alpine
+    container_name: nasser-database
+    environment:
+      POSTGRES_USER: nasser_user
+      POSTGRES_PASSWORD: nasser_password
+      POSTGRES_DB: nasser_db
+    volumes:
+      - nasser-postgres:/var/lib/postgresql/data
+    networks:
+      - nasser-network
+    restart: unless-stopped
+
+  nasser-cache:
+    image: redis:7-alpine
+    container_name: nasser-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - nasser-redis:/data
+    networks:
+      - nasser-network
+    restart: unless-stopped
+
+  nasser-monitor:
+    image: prom/prometheus:latest
+    container_name: nasser-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - nasser-prometheus:/prometheus
+    networks:
+      - nasser-network
+    restart: unless-stopped
+
+networks:
+  nasser-network:
+    driver: bridge
+
+volumes:
+  nasser-data:
+  nasser-logs:
+  nasser-postgres:
+  nasser-redis:
+  nasser-prometheus:
